@@ -4,8 +4,16 @@
 #include <string.h>
 #include "rede_social.h"
 
-void menu_inicio_sessao()
-{
+
+static int gerarIdUnico(Grafo* rede) {
+    int id;
+    do { id = rand() % 9000 + 1000; }  
+    while (buscarIndicePorId(rede, id) != -1);
+    return id;
+}
+
+
+void menu_inicio_sessao() {
     system("cls");
     printf("\t\t\t+-----------------------------------+\n");
     printf("\t\t\t|             UniConnect            |\n");
@@ -18,10 +26,9 @@ void menu_inicio_sessao()
     printf("\t\t\t+-----------------------------------+\n\n");
 }
 
-void cadastrar_usuario(Grafo* rede)
-{
-    //Variaveis de TESTE
-   char nome[50], universidade[50], senha[50], curso[50];
+
+void cadastrar_usuario(Grafo* rede) {
+    char nome[50], universidade[50], senha[50], curso[50];
     int qtd_interesses;
 
     system("cls");
@@ -41,9 +48,8 @@ void cadastrar_usuario(Grafo* rede)
     printf("\n\t\t\t[?] Curso: ");
     scanf(" %49[^\n]", curso);
 
-    printf("\n\t\t\t[?] Quantos interesses? (Max: 5): ");
+    printf("\n\t\t\t[?] Quantos interesses? (Max 5): ");
     scanf(" %d", &qtd_interesses);
-
     if (qtd_interesses > 5) qtd_interesses = 5;
     if (qtd_interesses < 1) qtd_interesses = 1;
 
@@ -53,100 +59,140 @@ void cadastrar_usuario(Grafo* rede)
         scanf(" %19[^\n]", interesses[i]);
     }
 
-    //Insercao do usuario no grafo
-
-    //Gerar o ID
-    int id_usuario = rand()%50;
-    int indice_do_novo_user = adicionarPessoa(rede,id_usuario,nome,universidade,curso,senha,qtd_interesses,interesses);
+    int id_usuario = gerarIdUnico(rede);
+    adicionarPessoa(rede, id_usuario, nome, universidade, curso, senha,
+                    qtd_interesses, interesses);
 
     system("cls");
-    printf("ID gerado %d",id_usuario);
-    printf("ID do vertice do user-> %d", indice_do_novo_user);
     printf("\n\n\t\t\t+----------------------------------------+\n");
-    printf("\t\t\t|  [!] Usuario Cadastrado                |\n");
-    printf("\t\t\t+----------------------------------------+\n\n\n\n");
-
-    printf("Pressione qualquer tecla para continuar... ");
-    getchar();
-    getchar();
-
-
+    printf("\t\t\t|  [!] Conta criada! O teu ID: %-9d|\n", id_usuario);
+    printf("\t\t\t+----------------------------------------+\n\n");
+    printf("Pressione ENTER para continuar...");
+    getchar(); getchar();
 }
 
-void imprimirMenu(char *username, Grafo* rede) {
+void menu_logado(Grafo* rede, Sessao* sessao) {
     char opcao[10];
-    system("cls");
-    do{
+
+    do {
+        system("cls");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
         printf("\t|                                         U n i C o n n e c t                                               |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
-        printf("\t| Seja Bem Vindo, @%-89s|\n", username);
+        printf("\t| Seja Bem Vindo, @%-89s|\n", sessao->nome);
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
         printf("\t| 1 | Ver Perfil                                   | 8 | Remover Amigo                                      |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
         printf("\t| 2 | Procurar Usuario                             | 9 | Seguir Usuario                                     |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
-        printf("\t| 3 | Editar Perfil                                | A |  Amigos em Comum                                   |\n");
+        printf("\t| 3 | Editar Perfil                                | A | Amigos em Comum                                    |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
-        printf("\t| 4 | Enviar Pedido de Amizade                     | B |  Enviar Mensagem                                   |\n");
+        printf("\t| 4 | Enviar Pedido de Amizade                     | B | Enviar Mensagem                                    |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
-        printf("\t| 5 | Ver Pedidos de Amizade                       | C |  Ver Todos Usuarios                                |\n");
+        printf("\t| 5 | Ver Pedidos de Amizade                       | C | Ver Todos Usuarios                                 |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
         printf("\t| 6 | Sugestao de Amigos                           |                                                        |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
         printf("\t| 7 | Meus Amigos                                  |                                                        |\n");
         printf("\t+--------------------------------------------------+--------------------------------------------------------+\n");
         printf("\t| 0 | Terminar sessao                                                                                       |\n");
-        printf("\t+---------a-----------------------------------------+--------------------------------------------------------+\n\n");
-        printf("\t\t");
-        gets(opcao);
-        if(strcmp(strlwr(opcao),"c") == 0 )
-        {
-                system("cls");
-                imprimirRede(rede);
-                printf("\n\n");
+        printf("\t+--------------------------------------------------+--------------------------------------------------------+\n\n");
+        printf("\t\t\tOpcao: ");
+        scanf(" %9s", opcao);
+
+       
+        for (int i = 0; opcao[i]; i++)
+            if (opcao[i] >= 'A' && opcao[i] <= 'Z') opcao[i] += 32;
+
+        if (strcmp(opcao, "4") == 0) {
+           
+            int idDest;
+            system("cls");
+            printf("\t[?] ID do utilizador a quem enviar pedido: ");
+            scanf("%d", &idDest);
+            enviarPedidoAmizade(rede, sessao->id, idDest);
+            printf("\nPressione ENTER para continuar...");
+            getchar(); getchar();
+
+        } else if (strcmp(opcao, "5") == 0) {
+           
+            system("cls");
+            imprimirPedidosPendentes(rede, sessao->id);
+
+          
+            int idRem;
+            printf("\n\t[?] ID de quem quer responder (0 para voltar): ");
+            scanf("%d", &idRem);
+            if (idRem != 0) {
+                char resp[4];
+                printf("\t[?] Aceitar? (s/n): ");
+                scanf(" %3s", resp);
+                int aceitar = (resp[0] == 's' || resp[0] == 'S');
+                responderPedidoAmizade(rede, sessao->id, idRem, aceitar);
+            }
+            printf("\nPressione ENTER para continuar...");
+            getchar(); getchar();
+
+        } else if (strcmp(opcao, "c") == 0) {
+            // --- Ver todos os utilizadores ---
+            system("cls");
+            imprimirRede(rede);
+            printf("\n\nPressione ENTER para continuar...");
+            getchar(); getchar();
         }
-    }while(strcmp(opcao,"0")!=0);
+
+    } while (strcmp(opcao, "0") != 0);
+
+   
+    sessao->id = -1;
+    sessao->nome[0] = '\0';
 }
 
 
-void login_usuario(Grafo* rede)
-{
-    // VARIAVEIS PARA o MOCK
+void login_usuario(Grafo* rede) {
     char nome[50], senha[50];
+    Sessao sessao;
+
     system("cls");
     printf("\t\t\t+----------------------------------------+\n");
     printf("\t\t\t|              LOGIN                     |\n");
     printf("\t\t\t+----------------------------------------+\n\n");
 
-    printf("\t\t\t[?] USERNAME: ");
+    printf("\t\t\t[?] Username: ");
     scanf(" %49[^\n]", nome);
 
-    printf("\t\t\t[?] SENHA: ");
+    printf("\t\t\t[?] Senha: ");
     scanf(" %49[^\n]", senha);
 
-    imprimirMenu(nome, rede);
+    if (fazerLogin(rede, nome, senha, &sessao)) {
+        
+        menu_logado(rede, &sessao);
+    } else {
+        system("cls");
+        printf("\n\t\t\t+----------------------------------------+\n");
+        printf("\t\t\t|  [!] Nome ou senha incorrectos.        |\n");
+        printf("\t\t\t+----------------------------------------+\n\n");
+        printf("Pressione ENTER para continuar...");
+        getchar(); getchar();
+    }
 }
 
 
-int main()
-{
+int main() {
     int opcao;
     srand(time(NULL));
     Grafo* rede = criarGrafo(5);
-    do{
-         menu_inicio_sessao();
-         printf("\t\t\t");
-         scanf("%d", &opcao);
 
-         if(opcao == 1)
-             cadastrar_usuario(rede);
-         else if(opcao == 2)
-        {
-            login_usuario(rede);
-         }
+    do {
+        menu_inicio_sessao();
+        printf("\t\t\t");
+        scanf("%d", &opcao);
 
-    }while(opcao != 0);
+        if      (opcao == 1) cadastrar_usuario(rede);
+        else if (opcao == 2) login_usuario(rede);
 
+    } while (opcao != 0);
+
+    liberarGrafo(rede);
     return 0;
 }
