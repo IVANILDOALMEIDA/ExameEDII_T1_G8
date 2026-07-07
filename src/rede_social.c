@@ -5,11 +5,11 @@
 #include <string.h>
 
 
-#define FICHEIRO_UTILIZADORES  "usuarios.dat"
-#define FICHEIRO_AMIZADES      "amizades.dat"
-#define FICHEIRO_PEDIDOS       "pedidos.dat"
-#define FICHEIRO_MENSAGENS     "mensagens.dat"
-#define FICHEIRO_PUBLICACOES   "posts.dat"
+#define FICHEIRO_UTILIZADORES  "usuarios.txt"
+#define FICHEIRO_AMIZADES      "amizades.txt"
+#define FICHEIRO_PEDIDOS       "pedidos.txt"
+#define FICHEIRO_MENSAGENS     "mensagens.txt"
+#define FICHEIRO_PUBLICACOES   "posts.txt"
 
 /* ------------------------------ Ciclo de vida ------------------------------- */
 
