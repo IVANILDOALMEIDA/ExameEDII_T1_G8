@@ -1,37 +1,17 @@
 /**
- * main.c
+ * menus.c
  * -----------------------------------------------------------------------
  *                            UNICONNECT
- * -----------------------------------------------------------------------
- * Interface de terminal (CLI) que liga a arquitetura RedeSocial (TADs)
- * ao utilizador final. Este ficheiro NAO define nenhuma estrutura de
- * dados nova - usa apenas a API publica exposta pelos modulos existentes
- * (rede_social.h, pesquisa.h, recomendacao.h, estatisticas.h).
+ *  Sistema de menus em cascata: Menu Principal -> Submenus por categoria
  *
- * NOTAS IMPORTANTES (ler antes de compilar):
- *
- * 1) CONST-CORRECTNESS: rede_social_get_amizades() devolve um
- *    `const GrafoAmizades *`, mas pedidos_aceitar() e
- *    grafo_remover_aresta() exigem um `GrafoAmizades *` mutavel (porque
- *    inserem/removem arestas). Isto e uma inconsistencia no header
- *    original: o modulo promete acesso "so de leitura" mas duas
- *    operacoes do menu (aceitar pedido de amizade, remover amigo)
- *    precisam de escrever no grafo. O contorno usado abaixo e um cast
- *    explicito `(GrafoAmizades *)`. Isto FUNCIONA mas nao e limpo -
- *    o correto e adicionar a rede_social.h/.c uma funcao:
- *        GrafoAmizades *rede_social_get_amizades_editavel(RedeSocial *rede);
- *    e usar essa em vez do cast.
- *
- * 2) "Seguir utilizador" (do menu antigo) NAO existe nesta arquitetura:
- *    o grafo e nao-dirigido, so ha amizade simetrica. Essa opcao foi
- *    removida do menu.
- *
- * 3) top5_compatibilidade() devolve SEMPRE um array de 5 posicoes; os
- *    slots nao usados vem marcados com id_utilizador == -1. Isto so se
- *    percebe a ler o .c (nao esta documentado no .h), por isso o
- *    tratamento do sentinela esta explicito no codigo abaixo.
+ *  NOTA: Esta versao NAO depende das TADs do projeto (sem RedeSocial,
+ *  sem Utilizador). Serve para desenhar e testar a navegacao do menu.
+ *  Quando as TADs estiverem prontas, cada opcao (comentada) deve
+ *  chamar a funcao real, normalmente passando os apontadores
+ *  necessarios (ex.: chamarFuncao(rede, sessao, ...)).
  * -----------------------------------------------------------------------
  */
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,23 +62,24 @@ static void ecra_comentar_curtir(RedeSocial *rede, int id_sessao);
 static void ecra_ver_todos(RedeSocial *rede);
 static void ecra_estatisticas(RedeSocial *rede);
 static int  ecra_eliminar_conta(RedeSocial *rede, int id_sessao);
+#include <stdio.h>
 
 /* ============================================================
- * Utilitarios de I/O seguro
- * ============================================================
- * O main.c original usava scanf("%d", ...) e scanf(" %49[^\n]", ...)
- * misturados, o que deixa lixo no buffer de entrada e nao valida nada
- * (idade nao numerica, strings maiores que o buffer, etc.). Aqui tudo
- * passa por fgets + validacao explicita.
- */
+ * Protótipos
+ * ============================================================ */
+void menuPrincipal(void);
+void menuPerfilConta(void);
+void menuAmizades(void);
+void menuMensagens(void);
+void menuPublicacoes(void);
+void menuPesquisa(void);
+void menuEstatisticas(void);
 
-/* Descarta o resto da linha atual no stdin (usado quando fgets nao
- * apanhou o '\n', ou seja, a linha era maior que o buffer). */
+/* Util: limpa o buffer de entrada apos scanf, evita loops infinitos
+   quando o utilizador escreve texto em vez de numero */
 static void limpar_buffer(void) {
     int c;
-    while ((c = getchar()) != '\n' && c != EOF) {
-        /* descarta */
-    }
+    while ((c = getchar()) != '\n' && c != EOF) { }
 }
 
 /* Le uma linha completa (sem o '\n' final) para 'destino', com no
@@ -150,7 +131,7 @@ static int ler_inteiro(const char *prompt, int minimo, int maximo) {
     while (1) {
         printf("%s", prompt);
         if (!ler_linha(linha, sizeof(linha))) {
-            printf("\n[!] Entrada terminada inesperadamente. A encerrar...\n");
+            printf("\n\t\t\t[!] Entrada terminada inesperadamente. A encerrar...\n");
             exit(1);
         }
 
@@ -158,11 +139,11 @@ static int ler_inteiro(const char *prompt, int minimo, int maximo) {
         long valor = strtol(linha, &fim, 10);
 
         if (fim == linha || *fim != '\0') {
-            printf("  [!] Isso nao e um numero valido. Tenta novamente.\n");
+            printf("\n\t\t\t[!] Isso nao e um numero valido. Tenta novamente.\n");
             continue;
         }
         if (valor < minimo || valor > maximo) {
-            printf("  [!] O valor tem de estar entre %d e %d.\n", minimo, maximo);
+            printf("\n\t\t\t[!] O valor tem de estar entre %d e %d.\n", minimo, maximo);
             continue;
         }
         return (int) valor;
@@ -171,15 +152,33 @@ static int ler_inteiro(const char *prompt, int minimo, int maximo) {
 
 static void pausar(void) {
     char tmp[8];
-    printf("\nPressione ENTER para continuar...");
+    printf("\n\t\t\t Pressione ENTER para continuar...");
     ler_linha(tmp, sizeof(tmp));
 }
+
+
+// ----------------------------------------------------------------
+// Menu inicial (sem sessao)
+// ----------------------------------------------------------------
+void menu_inicio_sessao() {
+    system("cls");
+    printf("\t\t\t+-----------------------------------+\n");
+    printf("\t\t\t|             UniConnect            |\n");
+    printf("\t\t\t+-----------------------------------+\n");
+    printf("\t\t\t| 1 | Fazer Cadastro                |\n");
+    printf("\t\t\t+-----------------------------------+\n");
+    printf("\t\t\t| 2 | Fazer Login                   |\n");
+    printf("\t\t\t+-----------------------------------+\n");
+    printf("\t\t\t| 0 | Sair                          |\n");
+    printf("\t\t\t+-----------------------------------+\n\n");
+}
+
 
 static void imprimir_cartao_utilizador(const Utilizador *u) {
     if (u == NULL) {
         return;
     }
-    printf("  [%d] @%-15s %-25s | %s - %s (%dÂº ano)\n",
+    printf("  [%d] @%-15s %-25s | %s - %s (%dº ano)\n",
            utilizador_get_id(u),
            utilizador_get_username(u),
            utilizador_get_nome(u),
@@ -201,38 +200,40 @@ static void ecra_cadastro(RedeSocial *rede) {
     int ano_academico, idade;
 
     LIMPAR_ECRA();
-    printf("=== CRIAR CONTA ===\n\n");
+    printf("\t\t\t+----------------------------------------+\n");
+    printf("\t\t\t|              CRIAR CONTA               |\n");
+    printf("\t\t\t+----------------------------------------+\n\n");
 
-    ler_texto("Nome completo: ",  nome,         sizeof(nome),         1);
-    ler_texto("Username: ",       username,     sizeof(username),     1);
-    ler_texto("Password: ",       password,     sizeof(password),     1);
-    ler_texto("Universidade: ",   universidade, sizeof(universidade), 1);
-    ler_texto("Curso: ",          curso,        sizeof(curso),        1);
-    ano_academico = ler_inteiro("Ano academico (1-10): ", 1, 10);
-    idade         = ler_inteiro("Idade (16-100): ", 16, 100);
+    ler_texto("\t\t\t[?] Nome completo: ",  nome,         sizeof(nome),         1);
+    ler_texto("\t\t\t[?] Username: ",       username,     sizeof(username),     1);
+    ler_texto("\t\t\t[?] Password: ",       password,     sizeof(password),     1);
+    ler_texto("\t\t\t[?] Universidade: ",   universidade, sizeof(universidade), 1);
+    ler_texto("\t\t\t[?] Curso: ",          curso,        sizeof(curso),        1);
+    ano_academico = ler_inteiro("\t\t\t[?] Ano academico (1-8): ", 1, 8);
+    idade         = ler_inteiro("\t\t\t[?] Idade (16-100): ", 16, 100);
 
     int id = rede_social_criar_conta(rede, nome, username, password,
                                       universidade, curso, ano_academico, idade);
 
     if (id == ERRO_JA_EXISTE) {
-        printf("\n[!] Esse username ja esta em uso. Escolhe outro.\n");
+        printf("\n\t\t\t[!] Esse username ja esta em uso. Escolhe outro.\n");
         pausar();
         return;
     }
     if (id < 0) {
-        printf("\n[!] Nao foi possivel criar a conta (erro %d).\n", id);
+        printf("\n\t\t\t[!] Nao foi possivel criar a conta.\n");
         pausar();
         return;
     }
 
-    int qtd = ler_inteiro("Quantos interesses queres adicionar agora? (0-5): ", 0, 5);
+    int qtd = ler_inteiro("\t\t\t[?] Quantos interesses queres adicionar agora? (0-5): ", 0, 5);
     if (qtd > 0) {
         const TabelaHash *tab = rede_social_get_utilizadores(rede);
         Utilizador *u = hash_procurar_id(tab, id);
         for (int i = 0; i < qtd; i++) {
             char interesse[MAX_INTERESSE];
             char prompt[48];
-            snprintf(prompt, sizeof(prompt), "  Interesse %d: ", i + 1);
+            snprintf(prompt, sizeof(prompt), "\t\t\tInteresse %d: ", i + 1);
             ler_texto(prompt, interesse, sizeof(interesse), 1);
             if (u != NULL) {
                 utilizador_adicionar_interesse(u, interesse);
@@ -240,8 +241,10 @@ static void ecra_cadastro(RedeSocial *rede) {
         }
     }
 
-    rede_social_guardar(rede);
-    printf("\n[OK] Conta criada com sucesso! O teu ID e: %d\n", id);
+    system("cls");
+    printf("\n\n\t\t\t+----------------------------------------+\n");
+    printf("\t\t\t|  [!] Conta criada! O teu ID: %d",id);
+    printf("\n\t\t\t\t+----------------------------------------+\n\n");
     pausar();
 }
 
@@ -250,19 +253,216 @@ static void ecra_login(RedeSocial *rede) {
     char password[MAX_PASSWORD];
 
     LIMPAR_ECRA();
-    printf("=== LOGIN ===\n\n");
-    ler_texto("Username: ", username, sizeof(username), 1);
-    ler_texto("Password: ", password, sizeof(password), 1);
+    printf("\t\t\t+----------------------------------------+\n");
+    printf("\t\t\t|              LOGIN                     |\n");
+    printf("\t\t\t+----------------------------------------+\n\n");
+    ler_texto("\t\t\t[?] Username: ", username, sizeof(username), 1);
+    printf("\n");
+    ler_texto("\t\t\t[?] Password: ", password, sizeof(password), 1);
 
     int id = rede_social_iniciar_sessao(rede, username, password);
     if (id < 0) {
-        printf("\n[!] Username ou password incorretos.\n");
+        printf("\n\t\t\t[!] Username ou password incorretos.\n");
         pausar();
         return;
     }
 
     menu_principal(rede, id);
 }
+
+static void menu_perfil(RedeSocial *rede, int id_sessao)
+{
+    char opcao[8];
+    do {
+        LIMPAR_ECRA();
+        printf("\n\t+----------------------------------------------------+\n");
+        printf("\t|              P e r f i l  e  C o n t a              |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 1 | Ver Perfil                                      |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 2 | Editar Perfil                                   |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 3 | Ver / Adicionar Interesses                      |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 4 | Apagar Conta                                    |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 0 | Voltar ao Menu Principal                        |\n");
+        printf("\t+----------------------------------------------------+\n\n");
+
+        ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
+
+
+        if      (strcmp(opcao, "1")  == 0) ecra_ver_perfil(rede, id_sessao);
+        else if (strcmp(opcao, "2")  == 0) ecra_editar_perfil(rede, id_sessao);
+        else if (strcmp(opcao, "4") == 0) {
+            if (ecra_eliminar_conta(rede, id_sessao)) {
+                return; /* conta apagada -> sai do menu, ja nao ha sessao */
+            }
+        }
+        else if (strcmp(opcao, "0") == 0) {
+           break;
+        }
+        else {
+            printf("\n[!] Opcao invalida.\n");
+            pausar();
+        }
+
+    }while(strcmp(opcao, "0") != 0);
+}
+
+static void menu_amizades(RedeSocial *rede, int id_sessao)
+{
+
+
+    char opcao[8];
+    do {
+        LIMPAR_ECRA();
+        printf("\n\t+----------------------------------------------------+\n");
+        printf("\t|                   A m i z a d e s                   |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 1 | Enviar Pedido de Amizade                        |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 2 | Pedidos Recebidos                              |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 3 | Pedidos Enviados                               |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 4 | Meus Amigos                                    |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 5 | Remover Amigo                                  |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 6 | Sugestao de Amigos                             |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 7 | Amigos em Comum                                |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 8 | TOP 5 Compatibilidade                          |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 0 | Voltar ao Menu Principal                       |\n");
+        printf("\t+----------------------------------------------------+\n\n");
+
+        ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
+
+
+        if      (strcmp(opcao, "1")  == 0) ecra_enviar_pedido(rede, id_sessao);
+        else if (strcmp(opcao, "2")  == 0) ecra_pedidos_recebidos(rede, id_sessao);
+        else if (strcmp(opcao, "3")  == 0) ecra_pedidos_enviados(rede, id_sessao);
+        else if (strcmp(opcao, "4")  == 0) ecra_meus_amigos(rede, id_sessao);
+        else if (strcmp(opcao, "5")  == 0) ecra_remover_amigo(rede, id_sessao);
+        else if (strcmp(opcao, "6")  == 0) ecra_sugestoes(rede, id_sessao);
+        else if (strcmp(opcao, "7")  == 0) ecra_amigos_comuns(rede, id_sessao);
+        else if (strcmp(opcao, "8")  == 0) ecra_top5(rede, id_sessao);
+        else if (strcmp(opcao, "0") == 0) {
+           break;
+        }
+        else {
+            printf("\n[!] Opcao invalida.\n");
+            pausar();
+        }
+
+
+    }while(strcmp(opcao, "0") != 0);
+}
+
+static void menu_mensagens(RedeSocial *rede, int id_sessao)
+{
+    char opcao[8];
+    do {
+        LIMPAR_ECRA();
+        printf("\n\t+----------------------------------------------------+\n");
+        printf("\t|                  M e n s a g e n s                  |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 1 | Enviar Mensagem                                 |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 2 | Ver Conversa com Utilizador                     |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 0 | Voltar ao Menu Principal                        |\n");
+        printf("\t+----------------------------------------------------+\n\n");
+
+        ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
+
+
+        if      (strcmp(opcao, "1")  == 0) ecra_enviar_mensagem(rede, id_sessao);
+        else if (strcmp(opcao, "2")  == 0) ecra_ver_conversa(rede, id_sessao);
+        else if (strcmp(opcao, "0") == 0) {
+           break;
+        }
+        else {
+            printf("\n[!] Opcao invalida.\n");
+            pausar();
+        }
+
+
+    }while(strcmp(opcao, "0") != 0);
+}
+
+static void menu_publicacoes(RedeSocial *rede, int id_sessao)
+{
+    char opcao[8];
+    do {
+        LIMPAR_ECRA();
+        printf("\n\t+--------------------------------------------------+\n");
+        printf("\t|              P u b l i c a c o e s                 |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 1 | Criar Publicacao                               |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 2 | Feed de Amigos                                 |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 3 | Comentar / Curtir Publicacao                   |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 0 | Voltar ao Menu Principal                       |\n");
+        printf("\t+----------------------------------------------------+\n\n");
+
+        ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
+
+
+        if      (strcmp(opcao, "1")  == 0) ecra_criar_post(rede, id_sessao);
+        else if (strcmp(opcao, "2")  == 0) ecra_feed(rede, id_sessao);
+        else if (strcmp(opcao, "3") == 0) ecra_comentar_curtir(rede, id_sessao);
+        else if (strcmp(opcao, "0") == 0) {
+           break;
+        }
+        else {
+            printf("\n[!] Opcao invalida.\n");
+            pausar();
+        }
+
+
+
+    }while(strcmp(opcao, "0") != 0);
+}
+
+static void menu_pesquisa(RedeSocial *rede)
+{
+    char opcao[8];
+    do {
+        LIMPAR_ECRA();
+        printf("\n\t+----------------------------------------------------+\n");
+        printf("\t|          P e s q u i s a  e  U t i l i z a d o r e s |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 1 | Procurar Utilizador                            |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 2 | Ver Todos os Utilizadores                       |\n");
+        printf("\t+----------------------------------------------------+\n");
+        printf("\t| 0 | Voltar ao Menu Principal                        |\n");
+        printf("\t+----------------------------------------------------+\n\n");
+
+        ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
+
+
+        if      (strcmp(opcao, "1")  == 0) ecra_procurar(rede);
+        else if (strcmp(opcao, "2")  == 0) ecra_ver_todos(rede);
+        else if (strcmp(opcao, "0") == 0) {
+           break;
+        }
+        else {
+            printf("\n[!] Opcao invalida.\n");
+            pausar();
+        }
+
+
+
+    }while(strcmp(opcao, "0") != 0);
+}
+
 
 /* ============================================================
  * Menu principal (sessao ativa)
@@ -278,7 +478,51 @@ static void menu_principal(RedeSocial *rede, int id_sessao) {
 
     do {
         LIMPAR_ECRA();
-        printf("======================= UniConnect =======================\n");
+
+
+
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t|                                        U n i C o n n e c t                                          |\n");
+        printf("\t+--------------------------------------------------+--------------------------------------------------+\n");
+        printf("\t| Seja Bem Vindo, @%-89s|\n", nome_sessao);
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t| 1 | Perfil e Conta                                                                                  |\n");
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t| 2 | Amizades                                                                                        |\n");
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t| 3 | Mensagens                                                                                       |\n");
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t| 4 | Publicacoes (Feed)                                                                              |\n");
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t| 5 | Pesquisa e Utilizadores                                                                         |\n");
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t| 6 | Estatisticas                                                                                    |\n");
+        printf("\t+----------------------------------------------------------------------------------------------------+\n");
+        printf("\t| 0 | Terminar Sessao                                                                                 |\n");
+        printf("\t+----------------------------------------------------------------------------------------------------+\n\n");
+        ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
+         if     (strcmp(opcao, "1")  == 0) menu_perfil(rede, id_sessao);
+        else if (strcmp(opcao, "2")  == 0) menu_amizades(rede, id_sessao);
+        else if (strcmp(opcao, "3")  == 0) menu_mensagens(rede,id_sessao);
+        else if (strcmp(opcao, "4")  == 0) menu_publicacoes(rede, id_sessao);
+        else if (strcmp(opcao, "5")  == 0) menu_pesquisa(rede);
+        else if (strcmp(opcao, "6")  == 0) {
+             LIMPAR_ECRA();
+              ecra_estatisticas(rede);
+        }
+
+        else if (strcmp(opcao, "0") == 0) {
+            rede_social_terminar_sessao(rede);
+            printf("\nSessao terminada.\n");
+            pausar();
+        }
+        else {
+            printf("\n[!] Opcao invalida.\n");
+            pausar();
+        }
+
+
+        /*printf("======================= UniConnect =======================\n");
         printf(" Sessao: @%s (id %d)\n", nome_sessao, id_sessao);
         printf("------------------------------------------------------------\n");
         printf(" 1  - Ver o meu perfil          | 11 - Amigos em comum\n");
@@ -293,10 +537,10 @@ static void menu_principal(RedeSocial *rede, int id_sessao) {
         printf(" 10 - Remover amigo             |\n");
         printf("------------------------------------------------------------\n");
         printf(" 0  - Terminar sessao\n");
-        printf("============================================================\n");
-        ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
+        printf("============================================================\n");*/
 
-        if      (strcmp(opcao, "1")  == 0) ecra_ver_perfil(rede, id_sessao);
+
+        /*if      (strcmp(opcao, "1")  == 0) ecra_ver_perfil(rede, id_sessao);
         else if (strcmp(opcao, "2")  == 0) ecra_editar_perfil(rede, id_sessao);
         else if (strcmp(opcao, "3")  == 0) ecra_procurar(rede);
         else if (strcmp(opcao, "4")  == 0) ecra_enviar_pedido(rede, id_sessao);
@@ -316,18 +560,10 @@ static void menu_principal(RedeSocial *rede, int id_sessao) {
         else if (strcmp(opcao, "18") == 0) ecra_estatisticas(rede);
         else if (strcmp(opcao, "19") == 0) {
             if (ecra_eliminar_conta(rede, id_sessao)) {
-                return; /* conta apagada -> sai do menu, ja nao ha sessao */
+                return; /* conta apagada -> sai do menu, ja nao ha sessao
             }
-        }
-        else if (strcmp(opcao, "0") == 0) {
-            rede_social_terminar_sessao(rede);
-            printf("\nSessao terminada.\n");
-            pausar();
-        }
-        else {
-            printf("\n[!] Opcao invalida.\n");
-            pausar();
-        }
+        }*/
+
     } while (strcmp(opcao, "0") != 0);
 }
 
@@ -373,56 +609,50 @@ static void ecra_editar_perfil(RedeSocial *rede, int id_sessao) {
             char v[MAX_NOME];
             ler_texto("Novo nome: ", v, sizeof(v), 1);
             utilizador_set_nome(u, v);
-            rede_social_guardar(rede);
             printf("[OK] Nome atualizado.\n");
         } else if (strcmp(opcao, "2") == 0) {
             char v[MAX_CURSO];
             ler_texto("Novo curso: ", v, sizeof(v), 1);
             utilizador_set_curso(u, v);
-            rede_social_guardar(rede);
             printf("[OK] Curso atualizado.\n");
         } else if (strcmp(opcao, "3") == 0) {
             int ano = ler_inteiro("Novo ano academico (1-10): ", 1, 10);
             utilizador_set_ano_academico(u, ano);
-            rede_social_guardar(rede);
             printf("[OK] Ano academico atualizado.\n");
         } else if (strcmp(opcao, "4") == 0) {
             char v[MAX_CIDADE];
             ler_texto("Nova cidade: ", v, sizeof(v), 0);
             utilizador_set_cidade(u, v);
-            rede_social_guardar(rede);
             printf("[OK] Cidade atualizada.\n");
         } else if (strcmp(opcao, "5") == 0) {
             char v[MAX_EMAIL];
             ler_texto("Novo email: ", v, sizeof(v), 0);
             utilizador_set_email(u, v);
-            rede_social_guardar(rede);
             printf("[OK] Email atualizado.\n");
         } else if (strcmp(opcao, "6") == 0) {
             char v[MAX_BIO];
             ler_texto("Nova bio: ", v, sizeof(v), 0);
             utilizador_set_bio(u, v);
-            rede_social_guardar(rede);
             printf("[OK] Bio atualizada.\n");
         } else if (strcmp(opcao, "7") == 0) {
             char v[MAX_INTERESSE];
             ler_texto("Novo interesse: ", v, sizeof(v), 1);
             int r = utilizador_adicionar_interesse(u, v);
-            if (r == OK) { rede_social_guardar(rede); printf("[OK] Interesse adicionado.\n"); }
+            if (r == OK) printf("[OK] Interesse adicionado.\n");
             else if (r == ERRO_JA_EXISTE) printf("[!] Ja tens esse interesse.\n");
             else printf("[!] Nao foi possivel adicionar (erro %d).\n", r);
         } else if (strcmp(opcao, "8") == 0) {
             char v[MAX_INTERESSE];
             ler_texto("Interesse a remover: ", v, sizeof(v), 1);
             int r = utilizador_remover_interesse(u, v);
-            if (r == OK) { rede_social_guardar(rede); printf("[OK] Interesse removido.\n"); }
+            if (r == OK) printf("[OK] Interesse removido.\n");
             else printf("[!] Interesse nao encontrado.\n");
         } else if (strcmp(opcao, "9") == 0) {
             char antiga[MAX_PASSWORD], nova[MAX_PASSWORD];
             ler_texto("Password atual: ", antiga, sizeof(antiga), 1);
             ler_texto("Nova password: ", nova, sizeof(nova), 1);
             int r = utilizador_alterar_password(u, antiga, nova);
-            if (r == OK) { rede_social_guardar(rede); printf("[OK] Password alterada.\n"); }
+            if (r == OK) printf("[OK] Password alterada.\n");
             else printf("[!] Password atual incorreta.\n");
         } else if (strcmp(opcao, "0") != 0) {
             printf("[!] Opcao invalida.\n");
@@ -441,7 +671,7 @@ static void ecra_procurar(RedeSocial *rede) {
     char opcao[4];
 
     LIMPAR_ECRA();
-    printf("=== PROCURAR UTILIZADORES ===\n\n");
+    printf("\t=== PROCURAR UTILIZADORES ===\n\n");
     printf("1 - Por nome\n2 - Por universidade\n3 - Por curso\n");
     printf("4 - Por interesse\n5 - Por cidade\n0 - Voltar\n");
     ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
@@ -506,7 +736,7 @@ static void ecra_enviar_pedido(RedeSocial *rede, int id_sessao) {
 
     GestorPedidos *gp = rede_social_get_pedidos(rede);
     int r = pedidos_enviar(gp, id_sessao, destino);
-    if (r == OK) { rede_social_guardar(rede); printf("\n[OK] Pedido enviado.\n"); }
+    if (r == OK) printf("\n[OK] Pedido enviado.\n");
     else if (r == ERRO_JA_EXISTE) printf("\n[!] Ja existe um pedido pendente entre voces.\n");
     else printf("\n[!] Nao foi possivel enviar o pedido (erro %d).\n", r);
     pausar();
@@ -547,11 +777,11 @@ static void ecra_pedidos_recebidos(RedeSocial *rede, int id_sessao) {
                 /* Ver nota (1) no topo do ficheiro sobre este cast. */
                 GrafoAmizades *g = (GrafoAmizades *) rede_social_get_amizades(rede);
                 int r = pedidos_aceitar(gp, escolha, id_sessao, g);
-                if (r == OK) { rede_social_guardar(rede); printf("[OK] Pedido aceite. Agora sao amigos.\n"); }
+                if (r == OK) printf("[OK] Pedido aceite. Agora sao amigos.\n");
                 else printf("[!] Nao foi possivel aceitar (erro %d).\n", r);
             } else {
                 int r = pedidos_recusar(gp, escolha, id_sessao);
-                if (r == OK) { rede_social_guardar(rede); printf("[OK] Pedido recusado.\n"); }
+                if (r == OK) printf("[OK] Pedido recusado.\n");
                 else printf("[!] Nao foi possivel recusar (erro %d).\n", r);
             }
         }
@@ -583,7 +813,7 @@ static void ecra_pedidos_enviados(RedeSocial *rede, int id_sessao) {
     int escolha = ler_inteiro("\nID do pedido a cancelar (0 para voltar): ", 0, 999999);
     if (escolha != 0) {
         int r = pedidos_cancelar(gp, id_sessao, escolha);
-        if (r == OK) { rede_social_guardar(rede); printf("[OK] Pedido cancelado.\n"); }
+        if (r == OK) printf("[OK] Pedido cancelado.\n");
         else printf("[!] Nao foi possivel cancelar (erro %d).\n", r);
     }
     free(lista);
@@ -680,7 +910,7 @@ static void ecra_remover_amigo(RedeSocial *rede, int id_sessao) {
         printf("\n[!] Nao sao amigos.\n");
     } else {
         int r = grafo_remover_aresta(g, id_sessao, alvo);
-        if (r == OK) { rede_social_guardar(rede); printf("\n[OK] Amizade removida.\n"); }
+        if (r == OK) printf("\n[OK] Amizade removida.\n");
         else printf("\n[!] Nao foi possivel remover (erro %d).\n", r);
     }
     pausar();
@@ -726,7 +956,7 @@ static void ecra_enviar_mensagem(RedeSocial *rede, int id_sessao) {
 
     ListaMensagens *lm = rede_social_get_mensagens(rede);
     int r = mensagens_enviar(lm, id_sessao, destino, conteudo);
-    if (r == OK) { rede_social_guardar(rede); printf("\n[OK] Mensagem enviada.\n"); }
+    if (r == OK) printf("\n[OK] Mensagem enviada.\n");
     else printf("\n[!] Nao foi possivel enviar (erro %d).\n", r);
     pausar();
 }
@@ -788,7 +1018,7 @@ static void ecra_criar_post(RedeSocial *rede, int id_sessao) {
 
     ListaPublicacoes *lp = rede_social_get_publicacoes(rede);
     int r = publicacoes_criar_post(lp, id_sessao, conteudo);
-    if (r >= 0) { rede_social_guardar(rede); printf("\n[OK] Publicado (post #%d).\n", r); }
+    if (r >= 0) printf("\n[OK] Publicado (post #%d).\n", r);
     else printf("\n[!] Nao foi possivel publicar (erro %d).\n", r);
     pausar();
 }
@@ -806,17 +1036,17 @@ static void ecra_comentar_curtir(RedeSocial *rede, int id_sessao) {
 
     if (strcmp(opcao, "1") == 0) {
         int r = publicacoes_curtir(lp, id_post, id_sessao);
-        if (r == OK) { rede_social_guardar(rede); printf("\n[OK] Gostaste da publicacao.\n"); }
+        if (r == OK) printf("\n[OK] Gostaste da publicacao.\n");
         else printf("\n[!] Nao foi possivel (erro %d).\n", r);
     } else if (strcmp(opcao, "2") == 0) {
         int r = publicacoes_descurtir(lp, id_post, id_sessao);
-        if (r == OK) { rede_social_guardar(rede); printf("\n[OK] Gosto removido.\n"); }
+        if (r == OK) printf("\n[OK] Gosto removido.\n");
         else printf("\n[!] Nao foi possivel (erro %d).\n", r);
     } else if (strcmp(opcao, "3") == 0) {
         char conteudo[MAX_CONTEUDO];
         ler_texto("Comentario: ", conteudo, sizeof(conteudo), 1);
         int r = publicacoes_comentar(lp, id_post, id_sessao, conteudo);
-        if (r == OK) { rede_social_guardar(rede); printf("\n[OK] Comentario adicionado.\n"); }
+        if (r == OK) printf("\n[OK] Comentario adicionado.\n");
         else printf("\n[!] Nao foi possivel (erro %d).\n", r);
     } else if (strcmp(opcao, "4") == 0) {
         const TabelaHash *tab = rede_social_get_utilizadores(rede);
@@ -884,7 +1114,6 @@ static int ecra_eliminar_conta(RedeSocial *rede, int id_sessao) {
 
     int r = rede_social_eliminar_conta(rede, id_sessao);
     if (r == OK) {
-        rede_social_guardar(rede);
         printf("\n[OK] Conta eliminada. Ate a proxima!\n");
         pausar();
         return 1;
@@ -894,27 +1123,19 @@ static int ecra_eliminar_conta(RedeSocial *rede, int id_sessao) {
     return 0;
 }
 
-/* ============================================================
- * main
- * ============================================================ */
 
 int main(void) {
+    char opcao[8];
     RedeSocial *rede = rede_social_iniciar();
     if (rede == NULL) {
-        fprintf(stderr, "Erro fatal: nao foi possivel iniciar a RedeSocial.\n");
+        fprintf(stderr, "Nao foi possivel iniciar a RedeSocial.\n");
         return 1;
     }
 
-    char opcao[8];
     do {
         LIMPAR_ECRA();
-        printf("+----------------------------------------+\n");
-        printf("|               UniConnect                |\n");
-        printf("+----------------------------------------+\n");
-        printf("| 1 | Criar conta                         |\n");
-        printf("| 2 | Iniciar sessao                      |\n");
-        printf("| 0 | Sair                                |\n");
-        printf("+----------------------------------------+\n\n");
+        menu_inicio_sessao();
+        printf("\t\t\t");
         ler_texto("Opcao: ", opcao, sizeof(opcao), 1);
 
         if (strcmp(opcao, "1") == 0) {
@@ -925,9 +1146,11 @@ int main(void) {
             printf("\n[!] Opcao invalida.\n");
             pausar();
         }
+
     } while (strcmp(opcao, "0") != 0);
 
     rede_social_terminar(rede);
-    printf("\nDados guardados. Ate a proxima!\n");
+    printf("\n\t\t\tDados guardados. Ate a proxima!\n");
     return 0;
 }
+
