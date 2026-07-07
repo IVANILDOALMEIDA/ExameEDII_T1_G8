@@ -27,9 +27,16 @@
  * ("Ao iniciar o programa: carregar os dados"). */
 RedeSocial *rede_social_iniciar(void);
  
-/* Grava todos os TADs em ficheiro e liberta toda a memória
- * ( "Ao terminar: guardar todas as alterações"). */
+/* Grava todos os TADs em ficheiro e liberta toda a memória. */
 void rede_social_terminar(RedeSocial *rede);
+
+/* Grava imediatamente o estado atual de todos os TADs em ficheiro,
+ * sem libertar memória nem terminar o programa. Deve ser chamada
+ * logo a seguir a qualquer operação que altere dados (criar conta,
+ * editar perfil, pedidos de amizade, mensagens, publicações, etc.),
+ * para que cada alteração fique persistida de imediato em vez de
+ * só no final da execução. Retorna OK ou um código de erro. */
+int rede_social_guardar(RedeSocial *rede);
  
 /* ------------------------------ Gestão de contas ---------------------------- */
  
