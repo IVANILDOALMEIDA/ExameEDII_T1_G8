@@ -240,3 +240,4 @@ int utilizador_comparar_por_nome(const Utilizador *a, const Utilizador *b) {
     }
     return comparar_strings_ci(a->nome_completo, b->nome_completo);
 }
+

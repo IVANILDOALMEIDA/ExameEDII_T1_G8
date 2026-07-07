@@ -27,7 +27,7 @@ RedeSocial *rede_social_iniciar(void) {
         rede->utilizadores = hash_criar(101);
     }
 
-    /* amizades — cria o grafo e garante um vértice para cada utilizador */
+    /* amizades ï¿½ cria o grafo e garante um vï¿½rtice para cada utilizador */
     rede->amizades = grafo_criar(101);
     int total_utilizadores = 0;
     Utilizador **todos = hash_listar_todos(rede->utilizadores, &total_utilizadores);
@@ -60,7 +60,7 @@ RedeSocial *rede_social_iniciar(void) {
         rede->mensagens = mensagens_criar();
     }
 
-    /* publicações */
+    /* publicaï¿½ï¿½es */
     rede->publicacoes = persistencia_ficheiro_existe(FICHEIRO_PUBLICACOES)
                              ? carregar_publicacoes(FICHEIRO_PUBLICACOES)
                              : publicacoes_criar();
@@ -85,7 +85,7 @@ void rede_social_terminar(RedeSocial *rede) {
     guardar_mensagens(FICHEIRO_MENSAGENS, rede->mensagens);
     guardar_publicacoes(FICHEIRO_PUBLICACOES, rede->publicacoes);
 
-    hash_destruir(rede->utilizadores, 1); /* liberta também os Utilizador* */
+    hash_destruir(rede->utilizadores, 1); /* liberta tambï¿½m os Utilizador* */
     grafo_destruir(rede->amizades);
     pedidos_destruir(rede->pedidos);
     mensagens_destruir(rede->mensagens);

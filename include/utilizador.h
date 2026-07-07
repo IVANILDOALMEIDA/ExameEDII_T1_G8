@@ -74,3 +74,4 @@ void utilizador_imprimir_perfil(const Utilizador *u);
 int utilizador_comparar_por_nome(const Utilizador *a, const Utilizador *b);
  
 #endif /* UTILIZADOR_H */
+
