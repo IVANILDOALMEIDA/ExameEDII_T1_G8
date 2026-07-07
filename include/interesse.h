@@ -48,4 +48,3 @@ int lista_interesses_para_array(const ListaInteresses *lista, char destino[][MAX
 void lista_interesses_imprimir(const ListaInteresses *lista);
  
 #endif /* INTERESSE_H */
- 
