@@ -1,14 +1,13 @@
 /**
  * persistencia.h
  * -----------------------------------------------------------------------
- * Módulo de PERSISTÊNCIA : carrega e grava em ficheiro binário
- * (.dat) o estado de cada TAD do sistema. Cada função "guardar_*"
+ * Módulo de PERSISTÊNCIA : carrega e grava em ficheiro de TEXTO
+ * (.txt) o estado de cada TAD do sistema. Cada função "guardar_*"
  * percorre o TAD em memória e escreve-o no ficheiro; cada "carregar_*"
  * lê o ficheiro e reconstrói o TAD correspondente.
  *
  * Nomes de ficheiro:
- *   usuarios.dat, amizades.dat, mensagens.dat,
- *   posts.dat, comentarios.dat, interesses.dat
+ *   usuarios.txt, amizades.txt, pedidos.txt, mensagens.txt, posts.txt
  * -----------------------------------------------------------------------
  */
  
