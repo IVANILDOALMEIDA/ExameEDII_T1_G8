@@ -74,16 +74,34 @@ RedeSocial *rede_social_iniciar(void) {
     return rede;
 }
 
+int rede_social_guardar(RedeSocial *rede) {
+    if (rede == NULL) {
+        return ERRO_PARAMETRO_INVALIDO;
+    }
+
+    int r1 = guardar_utilizadores(FICHEIRO_UTILIZADORES, rede->utilizadores);
+    int r2 = guardar_amizades(FICHEIRO_AMIZADES, rede->amizades);
+    int r3 = guardar_pedidos(FICHEIRO_PEDIDOS, rede->pedidos);
+    int r4 = guardar_mensagens(FICHEIRO_MENSAGENS, rede->mensagens);
+    int r5 = guardar_publicacoes(FICHEIRO_PUBLICACOES, rede->publicacoes);
+
+    if (r1 != OK) return r1;
+    if (r2 != OK) return r2;
+    if (r3 != OK) return r3;
+    if (r4 != OK) return r4;
+    if (r5 != OK) return r5;
+    return OK;
+}
+
 void rede_social_terminar(RedeSocial *rede) {
     if (rede == NULL) {
         return;
     }
 
-    guardar_utilizadores(FICHEIRO_UTILIZADORES, rede->utilizadores);
-    guardar_amizades(FICHEIRO_AMIZADES, rede->amizades);
-    guardar_pedidos(FICHEIRO_PEDIDOS, rede->pedidos);
-    guardar_mensagens(FICHEIRO_MENSAGENS, rede->mensagens);
-    guardar_publicacoes(FICHEIRO_PUBLICACOES, rede->publicacoes);
+    /* Guarda o estado final (na pratica ja deve estar tudo persistido,
+     * pois cada alteracao e gravada de imediato atraves de
+     * rede_social_guardar(); isto fica como salvaguarda extra). */
+    rede_social_guardar(rede);
 
     hash_destruir(rede->utilizadores, 1); /* liberta tamb�m os Utilizador* */
     grafo_destruir(rede->amizades);

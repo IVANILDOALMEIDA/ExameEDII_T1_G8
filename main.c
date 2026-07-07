@@ -65,7 +65,7 @@ static int  ecra_eliminar_conta(RedeSocial *rede, int id_sessao);
 #include <stdio.h>
 
 /* ============================================================
- * Protï¿½tipos
+ * Protótipos
  * ============================================================ */
 void menuPrincipal(void);
 void menuPerfilConta(void);
@@ -178,7 +178,7 @@ static void imprimir_cartao_utilizador(const Utilizador *u) {
     if (u == NULL) {
         return;
     }
-    printf("  [%d] @%-15s %-25s | %s - %s (%dï¿½ ano)\n",
+    printf("  [%d] @%-15s %-25s | %s - %s (%dº ano)\n",
            utilizador_get_id(u),
            utilizador_get_username(u),
            utilizador_get_nome(u),
